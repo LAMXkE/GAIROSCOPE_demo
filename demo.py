@@ -1,104 +1,69 @@
-import os
 import pyaudio
 import numpy as np
-import time
 
-SYN = "1010"
-DURATION = 0.5
-VOLUME = 0.3
-BODY_SIZE = 12  #bit count for body
-paudio = pyaudio.PyAudio()
-def play_sound(freq):
-    """
-      play_sound
-      arg : frequency that will be played
-      make a sin wave and play it
-    """
-    vol = VOLUME
-    sr = 48000
-    duration = DURATION
+def generate_carrier(frequency, duration, sampling_rate, vol):
+    samples = (np.sin(2 * np.pi * np.arange(int(sampling_rate * duration)) * frequency / sampling_rate)).astype(np.float32)
+    return (samples*vol)
 
 
-    samples = (np.sin(2*np.pi * np.arange(sr * duration) * freq/sr)).astype(np.float32)
+def modulate_data(binary_data, mark_frequency, space_frequency, sampling_rate, duration, vol):
+    carrier = generate_carrier(mark_frequency, duration, sampling_rate, vol)
+    # length = len(carrier.tobytes())
+    # t = np.arange(0, length )
+    modulated_signal = bytearray()
 
-    ostream = paudio.open(format=pyaudio.paFloat32, channels=1, rate=sr, output=True)
-    start_time = time.time()
-    ostream.write((vol*samples))
-    print("Played {:} for {:.2f} seconds".format(freq, time.time() - start_time))
-    ostream.close()
+    for i, bit in enumerate(binary_data):
+        frequency = mark_frequency if bit == 1 else space_frequency
+        carrier = generate_carrier(frequency, duration, sampling_rate, vol)
+        bcarrier = carrier.tobytes()
+        for i in range(len(bcarrier)):
+            modulated_signal.append(bcarrier[i])
+
+    return modulated_signal
+
+def make_parity(packet_data):
+    res = 0
+    for i in range(len(packet_data)):
+        res ^= packet_data[i]
     
+    return res
 
-def modulate_packet(packet):
-    """
-      modulate_packet
-      arg : packet
-      read packet and turn it to specific frequency
-    """
-    for i in range(len(packet)):
-        if packet[i] == '1':
-            play_sound(19056)
-        elif packet[i] == '0'   :
-            play_sound(19059)
+def make_packet(bin_data, bodySize=12):
+    packet = bytearray()
+    for i in range(0, len(bin_data), bodySize):
+        packet.append(1)
+        packet.append(0)
+        packet.append(1)
+        packet.append(0)
+        for j in range(0, bodySize):
+            try:
+                packet.append(bin_data[i+j])
+            except IndexError:
+                packet.append(0)
 
-def calculate_parity_bit(packet):
-    """
-      calculate_parity_bit
-      arg : packet
-      xor all the bit in the binary and returns it
-    """
-    pb = 0
-    for i in range(len(packet)):
-        if packet[i] == '1':
-            pb ^ 1
-        elif packet[i] == '0':
-            pb ^ 0
-    return pb
+        packet.append(make_parity(packet[i:i+4+bodySize]))
+    return packet
 
 
-def make_packet(body):
-  """
-    make_packet
-     arg : body of the packet
-     make a packet by concating preamble(SYN) and body and parity bit
-  """
-  if(len(body) > 12):
-      return 0
-  parity_bit = calculate_parity_bit(body)
-  packet = SYN + body + str(parity_bit)
-  return packet
-
-def read_file_and_make_sound(files):
-  """
-    read_file_and_make_sound
-    arg : list of names of files
-    open, read and expose the files given
-  """
-  for file in files:
-     with open(file, "rb") as fp:
-          body = ""
-          while True:
-              byte = fp.read(1)
-
-              if not byte:
-                  break
-              body += bin(int.from_bytes(byte, byteorder='big'))[2:]
-          for offset in range(0, len(body) // BODY_SIZE):
-
-              packet = make_packet(body[offset*12:offset*12+12])
-              if not packet:
-                  print("ERROR")
-                  break
-              modulate_packet(packet)
-
-if __name__ == "__main__":
-    directory = ''  #Directory to the folder you want to expose
-    files = []
-    for file in os.listdir(directory):
-        if os.path.isfile(os.path.join(directory, file)):
-            if file == 'testfile':  #for test purpose
-                files.append(file)
 
 
-    print(files)
-    read_file_and_make_sound(files)
-    paudio.terminate()
+
+paudio = pyaudio.PyAudio()
+vol = 0.2
+sr = 48000
+duration = 0.7
+mark_frequency = 8000  # 1
+space_frequency = 12000 # 0
+
+# Read file and convert to binary data
+with open('testfile', 'rb') as file:
+    content = file.read()
+
+binary_data = np.unpackbits(np.frombuffer(content, dtype=np.uint8))
+binary_data = list(make_packet(binary_data))
+modulated_signal = modulate_data(binary_data, mark_frequency, space_frequency, sr, duration, vol)
+
+ostream = paudio.open(format=pyaudio.paFloat32, channels=1, rate=sr, output=True)
+ostream.write(bytes(modulated_signal))
+ostream.close()
+paudio.terminate()
