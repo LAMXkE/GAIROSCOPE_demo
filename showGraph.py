@@ -1,6 +1,10 @@
 import matplotlib.pyplot as plt
 import csv
 import json
+import os
+
+if not os.path.exists('./magnitude.csv'):
+    os.system('adb pull /sdcard/Android/Data/com.example.gyroscope/files/magnitude.csv')
 
 f = open('./magnitude.csv', 'r')
 t = open('./timetable', 'r')
