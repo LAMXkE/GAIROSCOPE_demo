@@ -1,15 +1,17 @@
 import pyaudio
 import numpy as np
+from datetime import datetime
+from pytz import timezone
+import json
 
 def generate_carrier(frequency, duration, sampling_rate, vol):
-    samples = (np.sin(2 * np.pi * np.arange(int(sampling_rate * duration)) * frequency / sampling_rate)).astype(np.float32)
+    t = np.linspace(0, duration, int(sampling_rate * duration), endpoint=False)
+    samples = np.sin(2 * np.pi * frequency * t).astype(np.float32)
     return (samples*vol)
 
 
 def modulate_data(binary_data, mark_frequency, space_frequency, sampling_rate, duration, vol):
     carrier = generate_carrier(mark_frequency, duration, sampling_rate, vol)
-    # length = len(carrier.tobytes())
-    # t = np.arange(0, length )
     modulated_signal = bytearray()
 
     for i, bit in enumerate(binary_data):
@@ -45,6 +47,22 @@ def make_packet(bin_data, bodySize=12):
     return packet
 
 
+def test_resonance():
+    hzfile = open('./timetable', 'w')
+    times = {}
+    modulated_signal = bytearray()
+    for i in range(7800, 7830, 10):
+        print(datetime.now(timezone('Asia/Seoul')).strftime('%s'), i)
+        times[datetime.now(timezone('Asia/Seoul')).strftime('%s')] = i
+        ostream = paudio.open(format=pyaudio.paFloat32, channels=1, rate=sr, output=True)
+        carrier = generate_carrier(i, 2, 48000, 0.3)
+        ostream.write(carrier.tobytes())
+        ostream.close()
+        
+    print(times)
+    hzfile.write(json.dumps(times))
+    hzfile.close()
+    return modulated_signal
 
 
 
@@ -61,9 +79,12 @@ with open('testfile', 'rb') as file:
 
 binary_data = np.unpackbits(np.frombuffer(content, dtype=np.uint8))
 binary_data = list(make_packet(binary_data))
-modulated_signal = modulate_data(binary_data, mark_frequency, space_frequency, sr, duration, vol)
+test_resonance() 
 
-ostream = paudio.open(format=pyaudio.paFloat32, channels=1, rate=sr, output=True)
-ostream.write(bytes(modulated_signal))
-ostream.close()
+# Uncomment to play the sound
+
+#modulated_signal = modulate_data(binary_data, mark_frequency, space_frequency, sr, duration, vol)
+# ostream = paudio.open(format=pyaudio.paFloat32, channels=1, rate=sr, output=True)
+# ostream.write(bytes(modulated_signal))
+# ostream.close()
 paudio.terminate()
