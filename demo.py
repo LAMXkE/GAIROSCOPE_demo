@@ -51,7 +51,7 @@ def test_resonance():
     hzfile = open('./timetable', 'w')
     times = {}
     modulated_signal = bytearray()
-    for i in range(7800, 7830, 10):
+    for i in range(20000, 21000, 10):
         print(datetime.now(timezone('Asia/Seoul')).strftime('%s'), i)
         times[datetime.now(timezone('Asia/Seoul')).strftime('%s')] = i
         ostream = paudio.open(format=pyaudio.paFloat32, channels=1, rate=sr, output=True)
@@ -59,7 +59,6 @@ def test_resonance():
         ostream.write(carrier.tobytes())
         ostream.close()
         
-    print(times)
     hzfile.write(json.dumps(times))
     hzfile.close()
     return modulated_signal
@@ -74,11 +73,10 @@ mark_frequency = 8000  # 1
 space_frequency = 12000 # 0
 
 # Read file and convert to binary data
-with open('testfile', 'rb') as file:
-    content = file.read()
-
-binary_data = np.unpackbits(np.frombuffer(content, dtype=np.uint8))
-binary_data = list(make_packet(binary_data))
+#with open('testfile', 'rb') as file:
+#    content = file.read()
+#binary_data = np.unpackbits(np.frombuffer(content, dtype=np.uint8))
+#binary_data = list(make_packet(binary_data))
 test_resonance() 
 
 # Uncomment to play the sound
