@@ -19,15 +19,34 @@ with t:
 
 with f:
     reader = csv.reader(f)
+    current_timestamp = 0
+    x_sum = 0
+    y_sum = 0
+    cnt = 0
+    first = True
     next(reader) # skip the header row if present
     for row in reader:
-        try:
-            hz_values.append(time_to_hz[row[0]])
-        except KeyError:
-            continue
+        if row[0] == current_timestamp or first :
+            x_sum += float(row[1])
+            y_sum += float(row[2])
+            cnt += 1
+            first = False
+        else:
+            try:
+                hz_values.append(time_to_hz[row[0]])
+                #hz_values.append(int(row[0]))
+            except KeyError:
+                continue
+            x_values.append(x_sum/cnt)
+            y_values.append(y_sum/cnt)
+            x_sum = 0
+            y_sum = 0
+            cnt = 0
 
-        x_values.append(float(row[1]))
-        y_values.append(float(row[2]))
+        current_timestamp = row[0]
+            
+        # x_values.append(float(row[1]))
+        # y_values.append(float(row[2]))
 
 # Plot the first graph x-axis magnitude per Hz
 plt.figure(1)
