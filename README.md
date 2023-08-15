@@ -1,3 +1,5 @@
+`The project is on progress`
+
 # GAIROSCOPE_demo
 android APP for demo is at https://github.com/touBVa/Gyroscope
 
